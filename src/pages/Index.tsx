@@ -1,31 +1,28 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import heroImg from "@/assets/hero-network.jpg";
 import InputPanel, { PipelineConfig } from "@/components/InputPanel";
 import ResultsDashboard from "@/components/ResultsDashboard";
+import { runPipeline, PipelineResult } from "@/lib/api";
 
 const Index = () => {
-  const [results, setResults] = useState<{
-    nodes: number;
-    edges: number;
-    modulatorSize: number;
-    tdsSize: number;
-  } | null>(null);
+  const [results, setResults] = useState<PipelineResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
-  const handleRun = (config: PipelineConfig) => {
+  const handleRun = async (config: PipelineConfig) => {
     setIsRunning(true);
     setResults(null);
 
-    // Simulate pipeline processing
-    setTimeout(() => {
-      setResults({
-        nodes: Math.floor(Math.random() * 200) + 50,
-        edges: Math.floor(Math.random() * 500) + 100,
-        modulatorSize: config.kModulator,
-        tdsSize: Math.floor(Math.random() * 30) + 5,
-      });
+    try {
+      const data = await runPipeline(config);
+      setResults(data);
+      toast.success(`Pipeline complete — TDS size: ${data.tds_size}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Pipeline failed";
+      toast.error(message);
+    } finally {
       setIsRunning(false);
-    }, 2200);
+    }
   };
 
   return (
