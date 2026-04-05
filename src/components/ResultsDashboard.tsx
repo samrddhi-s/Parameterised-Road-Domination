@@ -1,19 +1,10 @@
 import { Network, GitBranch, Cpu, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MetricCard from "./MetricCard";
-import modulatorImg from "@/assets/modulator-preview.jpg";
-import tdsImg from "@/assets/tds-preview.jpg";
-import satelliteImg from "@/assets/satellite-preview.jpg";
-
-interface ResultsData {
-  nodes: number;
-  edges: number;
-  modulatorSize: number;
-  tdsSize: number;
-}
+import type { PipelineResult } from "@/lib/api";
 
 interface ResultsDashboardProps {
-  data: ResultsData;
+  data: PipelineResult;
 }
 
 const ResultsDashboard = ({ data }: ResultsDashboardProps) => (
@@ -22,8 +13,8 @@ const ResultsDashboard = ({ data }: ResultsDashboardProps) => (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <MetricCard label="Graph Nodes" value={data.nodes.toLocaleString()} icon={Network} delay={0} />
       <MetricCard label="Network Edges" value={data.edges.toLocaleString()} icon={GitBranch} delay={100} />
-      <MetricCard label="Modulator Set" value={data.modulatorSize.toString()} icon={Cpu} delay={200} />
-      <MetricCard label="Optimum TDS" value={data.tdsSize.toString()} icon={Target} delay={300} />
+      <MetricCard label="Modulator Set" value={data.modulator_size.toString()} icon={Cpu} delay={200} />
+      <MetricCard label="Optimum TDS" value={data.tds_size.toString()} icon={Target} delay={300} />
     </div>
 
     {/* Visualization Tabs */}
@@ -53,13 +44,31 @@ const ResultsDashboard = ({ data }: ResultsDashboardProps) => (
         </div>
 
         <TabsContent value="modulator" className="p-0 m-0">
-          <img src={modulatorImg} alt="Modulator visualization" className="w-full h-auto" loading="lazy" width={1200} height={800} />
+          {data.img_modulator ? (
+            <img src={`data:image/png;base64,${data.img_modulator}`} alt="Modulator visualization" className="w-full h-auto" />
+          ) : (
+            <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
+              No modulator visualization available
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="tds" className="p-0 m-0">
-          <img src={tdsImg} alt="TDS visualization" className="w-full h-auto" loading="lazy" width={1200} height={800} />
+          {data.img_tds ? (
+            <img src={`data:image/png;base64,${data.img_tds}`} alt="TDS visualization" className="w-full h-auto" />
+          ) : (
+            <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
+              No TDS visualization available
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="satellite" className="p-0 m-0">
-          <img src={satelliteImg} alt="Satellite visualization" className="w-full h-auto" loading="lazy" width={1200} height={800} />
+          {data.img_satellite ? (
+            <img src={`data:image/png;base64,${data.img_satellite}`} alt="Satellite visualization" className="w-full h-auto" />
+          ) : (
+            <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
+              Satellite view requires Point or BBox mode with contextily installed on the server
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
