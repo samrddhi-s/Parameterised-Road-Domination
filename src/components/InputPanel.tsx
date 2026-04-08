@@ -22,6 +22,7 @@ export interface PipelineConfig {
   kModulator: number;
   maxNodes: number;
   radius: number;
+  graphType: "cluster" | "block";
 }
 
 const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
@@ -34,13 +35,42 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
   const [kModulator, setKModulator] = useState(10);
   const [maxNodes, setMaxNodes] = useState(100);
   const [radius, setRadius] = useState(200);
+  const [graphType, setGraphType] = useState<"cluster" | "block">("cluster");
 
   const handleRun = () => {
-    onRun({ mode, lat, lon, place, bbox, networkType, kModulator, maxNodes, radius });
+    onRun({ mode, lat, lon, place, bbox, networkType, kModulator, maxNodes, radius, graphType });
   };
 
   return (
     <div className="space-y-6">
+      {/* Graph Type Selection */}
+      <div className="glass-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Cpu className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+            Graph Type
+          </h3>
+        </div>
+        <Select value={graphType} onValueChange={(v) => setGraphType(v as "cluster" | "block")}>
+          <SelectTrigger className="bg-secondary/50 border-border/50 text-foreground">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="cluster">
+              Almost Cluster Graph → Min SDS
+            </SelectItem>
+            <SelectItem value="block">
+              Almost Block Graph → Min TDS
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-2">
+          {graphType === "cluster"
+            ? "CVD modulator → Minimum Secure Dominating Set (Python FPT)"
+            : "BGD modulator → Minimum Total Dominating Set (C++ solver)"}
+        </p>
+      </div>
+
       {/* Location Mode */}
       <div className="glass-card p-5">
         <div className="flex items-center gap-2 mb-4">
@@ -66,35 +96,18 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Latitude</Label>
-                <Input
-                  type="number"
-                  step="0.000001"
-                  value={lat}
-                  onChange={(e) => setLat(parseFloat(e.target.value))}
-                  className="bg-secondary/50 border-border/50 text-foreground"
-                />
+                <Input type="number" step="0.000001" value={lat} onChange={(e) => setLat(parseFloat(e.target.value))} className="bg-secondary/50 border-border/50 text-foreground" />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Longitude</Label>
-                <Input
-                  type="number"
-                  step="0.000001"
-                  value={lon}
-                  onChange={(e) => setLon(parseFloat(e.target.value))}
-                  className="bg-secondary/50 border-border/50 text-foreground"
-                />
+                <Input type="number" step="0.000001" value={lon} onChange={(e) => setLon(parseFloat(e.target.value))} className="bg-secondary/50 border-border/50 text-foreground" />
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="place" className="mt-4">
             <Label className="text-xs text-muted-foreground">Region</Label>
-            <Input
-              value={place}
-              onChange={(e) => setPlace(e.target.value)}
-              placeholder="E.g., Adyar, Chennai"
-              className="bg-secondary/50 border-border/50 text-foreground"
-            />
+            <Input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="E.g., Adyar, Chennai" className="bg-secondary/50 border-border/50 text-foreground" />
           </TabsContent>
 
           <TabsContent value="bbox" className="mt-4 space-y-3">
@@ -104,13 +117,7 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
                   <Label className="text-xs text-muted-foreground capitalize">
                     {k === "n" ? "North" : k === "s" ? "South" : k === "e" ? "East" : "West"}
                   </Label>
-                  <Input
-                    type="number"
-                    step="0.000001"
-                    value={bbox[k]}
-                    onChange={(e) => setBbox({ ...bbox, [k]: parseFloat(e.target.value) })}
-                    className="bg-secondary/50 border-border/50 text-foreground"
-                  />
+                  <Input type="number" step="0.000001" value={bbox[k]} onChange={(e) => setBbox({ ...bbox, [k]: parseFloat(e.target.value) })} className="bg-secondary/50 border-border/50 text-foreground" />
                 </div>
               ))}
             </div>
@@ -142,50 +149,31 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
             </Select>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-xs text-muted-foreground">Modulator Vector (k)</Label>
-              <span className="text-xs font-mono text-primary">{kModulator}</span>
+          {graphType === "block" && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-xs text-muted-foreground">Modulator Vector (k)</Label>
+                <span className="text-xs font-mono text-primary">{kModulator}</span>
+              </div>
+              <Slider value={[kModulator]} onValueChange={([v]) => setKModulator(v)} min={1} max={20} step={1} className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary" />
             </div>
-            <Slider
-              value={[kModulator]}
-              onValueChange={([v]) => setKModulator(v)}
-              min={1}
-              max={20}
-              step={1}
-              className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary"
-            />
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">Max Nodes</Label>
-              <Input
-                type="number"
-                value={maxNodes}
-                onChange={(e) => setMaxNodes(parseInt(e.target.value))}
-                className="bg-secondary/50 border-border/50 text-foreground"
-              />
+              <Input type="number" value={maxNodes} onChange={(e) => setMaxNodes(parseInt(e.target.value))} className="bg-secondary/50 border-border/50 text-foreground" />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Radius (m)</Label>
-              <Input
-                type="number"
-                value={radius}
-                onChange={(e) => setRadius(parseInt(e.target.value))}
-                className="bg-secondary/50 border-border/50 text-foreground"
-              />
+              <Input type="number" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} className="bg-secondary/50 border-border/50 text-foreground" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Run Button */}
-      <Button
-        onClick={handleRun}
-        disabled={isRunning}
-        className="w-full h-12 bg-primary text-primary-foreground font-semibold text-base tracking-wide hover:brightness-110 transition-all duration-200 glow-accent"
-      >
+      <Button onClick={handleRun} disabled={isRunning} className="w-full h-12 bg-primary text-primary-foreground font-semibold text-base tracking-wide hover:brightness-110 transition-all duration-200 glow-accent">
         {isRunning ? (
           <span className="flex items-center gap-2">
             <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
@@ -201,5 +189,8 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
     </div>
   );
 };
+
+// Re-export Cpu so it's available in the component
+import { Cpu } from "lucide-react";
 
 export default InputPanel;
