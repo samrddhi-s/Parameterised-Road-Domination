@@ -190,7 +190,6 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
   );
 };
 
-// Re-export Cpu so it's available in the component
-import { Cpu } from "lucide-react";
+
 
 export default InputPanel;
