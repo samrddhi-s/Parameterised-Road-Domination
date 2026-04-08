@@ -16,7 +16,7 @@ const Index = () => {
     try {
       const data = await runPipeline(config);
       setResults(data);
-      toast.success(`Pipeline complete — TDS size: ${data.tds_size}`);
+      toast.success(`Pipeline complete — ${data.ds_type} size: ${data.ds_size}`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Pipeline failed";
       toast.error(message);

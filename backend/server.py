@@ -1,8 +1,9 @@
 """
-FastAPI server wrapping the TDS Pipeline.
+FastAPI server wrapping the unified TDS/SDS Pipeline.
 
-Deploy this alongside your pipeline code (tds_pipeline.py, block_graph_deletion.py,
-and the mintds_opt_new executable).
+Supports two graph types:
+  - "block"   → Almost Block Graph  → BGD + Min Total Dominating Set (C++ solver)
+  - "cluster" → Almost Cluster Graph → CVD + Min Secure Dominating Set (Python FPT)
 
 Install: pip install fastapi uvicorn
 Run:     uvicorn server:app --host 0.0.0.0 --port 8000
@@ -14,14 +15,12 @@ import traceback
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional
 
-# Import your pipeline
-from tds_pipeline import PipelineArgs, run_pipeline_for_ui
+from pipeline import PipelineArgs, run_pipeline_for_ui
 
-app = FastAPI(title="TDS Pipeline API", version="1.0.0")
+app = FastAPI(title="TDS/SDS Pipeline API", version="2.0.0")
 
-# Allow all origins in dev — lock this down for production
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,16 +43,19 @@ class PipelineRequest(BaseModel):
     k_modulator: int = Field(default=10, ge=1, le=20)
     max_nodes: int = Field(default=100, ge=10, le=1000)
     radius: int = Field(default=200, ge=50, le=2000)
+    graph_type: str = Field(default="cluster", pattern="^(cluster|block)$")
 
 
 class PipelineResponse(BaseModel):
     nodes: int
     edges: int
     modulator_size: int
-    tds_size: int
-    img_modulator: Optional[str] = None   # base64 PNG
-    img_tds: Optional[str] = None         # base64 PNG
-    img_satellite: Optional[str] = None   # base64 PNG
+    ds_size: int
+    ds_type: str                            # "TDS" or "SDS"
+    graph_type: str                         # "block" or "cluster"
+    img_modulator: Optional[str] = None     # base64 PNG
+    img_ds: Optional[str] = None            # base64 PNG
+    img_satellite: Optional[str] = None     # base64 PNG
 
 
 def _read_image_b64(path: Optional[str]) -> Optional[str]:
@@ -81,6 +83,7 @@ async def run_pipeline(req: PipelineRequest):
         k=req.k_modulator,
         maxnodes=req.max_nodes,
         network=req.network_type,
+        graph_type=req.graph_type,
     )
 
     try:
@@ -95,9 +98,11 @@ async def run_pipeline(req: PipelineRequest):
         nodes=results.get("nodes", 0),
         edges=results.get("edges", 0),
         modulator_size=results.get("modulator_size", 0),
-        tds_size=results.get("tds_size", 0),
+        ds_size=results.get("ds_size", 0),
+        ds_type=results.get("ds_type", "TDS"),
+        graph_type=results.get("graph_type", req.graph_type),
         img_modulator=_read_image_b64(results.get("img_modulator")),
-        img_tds=_read_image_b64(results.get("img_tds")),
+        img_ds=_read_image_b64(results.get("img_ds")),
         img_satellite=_read_image_b64(results.get("img_satellite")),
     )
 
