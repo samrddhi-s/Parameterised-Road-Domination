@@ -8,10 +8,11 @@ interface ResultsDashboardProps {
 }
 
 const ResultsDashboard = ({ data }: ResultsDashboardProps) => {
-  const isTDS = data.ds_type === "TDS";
-  const dsLabel = isTDS ? "Optimum TDS" : "Optimum SDS";
-  const dsTabLabel = isTDS ? "Vector Simulation: TDS" : "Secure Domination: SDS";
-  const modulatorLabel = isTDS ? "BGD Modulator" : "CVD Modulator";
+  const isSDS = data.ds_type === "SDS";
+  const isInterval = data.ds_type === "TDS (Interval)";
+  const dsLabel = isSDS ? "Optimum SDS" : "Optimum TDS";
+  const dsTabLabel = isSDS ? "Secure Domination: SDS" : isInterval ? "Interval TDS Result" : "Vector Simulation: TDS";
+  const modulatorLabel = isSDS ? "CVD Modulator" : isInterval ? "IVD Modulator" : "BGD Modulator";
 
   return (
     <div className="space-y-8 animate-fade-in">
