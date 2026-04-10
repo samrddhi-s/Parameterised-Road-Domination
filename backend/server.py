@@ -43,7 +43,7 @@ class PipelineRequest(BaseModel):
     k_modulator: int = Field(default=10, ge=1, le=20)
     max_nodes: int = Field(default=100, ge=10, le=1000)
     radius: int = Field(default=200, ge=50, le=2000)
-    graph_type: str = Field(default="cluster", pattern="^(cluster|block)$")
+    graph_type: str = Field(default="cluster", pattern="^(cluster|block|interval)$")
 
 
 class PipelineResponse(BaseModel):

@@ -22,7 +22,7 @@ export interface PipelineConfig {
   kModulator: number;
   maxNodes: number;
   radius: number;
-  graphType: "cluster" | "block";
+  graphType: "cluster" | "block" | "interval";
 }
 
 const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
@@ -35,7 +35,7 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
   const [kModulator, setKModulator] = useState(10);
   const [maxNodes, setMaxNodes] = useState(100);
   const [radius, setRadius] = useState(200);
-  const [graphType, setGraphType] = useState<"cluster" | "block">("cluster");
+  const [graphType, setGraphType] = useState<"cluster" | "block" | "interval">("cluster");
 
   const handleRun = () => {
     onRun({ mode, lat, lon, place, bbox, networkType, kModulator, maxNodes, radius, graphType });
@@ -51,7 +51,7 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
             Graph Type
           </h3>
         </div>
-        <Select value={graphType} onValueChange={(v) => setGraphType(v as "cluster" | "block")}>
+        <Select value={graphType} onValueChange={(v) => setGraphType(v as "cluster" | "block" | "interval")}>
           <SelectTrigger className="bg-secondary/50 border-border/50 text-foreground">
             <SelectValue />
           </SelectTrigger>
@@ -62,12 +62,17 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
             <SelectItem value="block">
               Almost Block Graph → Min TDS
             </SelectItem>
+            <SelectItem value="interval">
+              Almost Interval Graph → Min TDS
+            </SelectItem>
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground mt-2">
           {graphType === "cluster"
             ? "CVD modulator → Minimum Secure Dominating Set (Python FPT)"
-            : "BGD modulator → Minimum Total Dominating Set (C++ solver)"}
+            : graphType === "block"
+            ? "BGD modulator → Minimum Total Dominating Set (C++ solver)"
+            : "IVD modulator → Minimum Total Dominating Set (Python FPT)"}
         </p>
       </div>
 

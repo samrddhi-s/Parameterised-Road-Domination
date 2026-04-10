@@ -7,7 +7,7 @@ export interface PipelineResult {
   edges: number;
   modulator_size: number;
   ds_size: number;
-  ds_type: "TDS" | "SDS";
+  ds_type: "TDS" | "SDS" | "TDS (Interval)";
   graph_type: "block" | "cluster";
   img_modulator: string | null;
   img_ds: string | null;
