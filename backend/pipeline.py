@@ -3,8 +3,9 @@ pipeline.py
 ===========
 Full Pipeline: OSM -> Graph Type Choice -> Min Dominating Set
 =============================================================
-Choice 1: Almost Block Graph   -> Block Graph Deletion (BGD) -> Min TDS  (C++ solver)
-Choice 2: Almost Cluster Graph -> Cluster Vertex Deletion (CVD) -> Min SDS  (Python FPT)
+Choice 1: Almost Block Graph     -> Block Graph Deletion (BGD) -> Min TDS  (C++ solver)
+Choice 2: Almost Cluster Graph   -> Cluster Vertex Deletion (CVD) -> Min SDS  (Python FPT)
+Choice 3: Almost Interval Graph  -> Interval Vertex Deletion (IVD) -> Min TDS  (Python FPT)
 """
 
 import sys
@@ -21,6 +22,14 @@ from msds_solver import (
     get_cvd_and_cliques,
     solve_msds_fpt,
     is_secure_dominating,
+)
+
+# ── IVD + TDS solver (interval branch) ───────────────────────────────────────
+from interval_tds_solver import (
+    nx_to_adj,
+    extract_ivd_modulator,
+    solve_tds_almost_interval,
+    run_interval_pipeline,
 )
 
 try:
@@ -407,7 +416,129 @@ def save_satellite_image(lat, lon, radius, label, G_nx, modulator_osm, tds_osm):
 
 
 # ===========================================================================
-# SECTION D: BRANCH RUNNERS
+# SECTION D: VISUALIZATIONS — INTERVAL BRANCH (IVD + TDS)
+# ===========================================================================
+
+def visualize_ivd_modulator(G_nx, modulator_osm, label, tds_size):
+    pos    = {n: (G_nx.nodes[n]["x"], G_nx.nodes[n]["y"]) for n in G_nx.nodes()}
+    colors = ["#8e44ad" if n in modulator_osm else "#111111" for n in G_nx.nodes()]
+    sizes  = [140 if n in modulator_osm else 25 for n in G_nx.nodes()]
+
+    fig, ax = plt.subplots(figsize=(12, 9))
+    nx.draw_networkx_edges(G_nx, pos, ax=ax, edge_color="#111111", width=0.8, alpha=0.6)
+    nx.draw_networkx_nodes(G_nx, pos, ax=ax, node_color=colors, node_size=sizes)
+    annotate_corner_leaves(ax, G_nx)
+    ax.legend(handles=[
+        mpatches.Patch(color="#111111", label="Regular nodes (G-S)"),
+        mpatches.Patch(color="#8e44ad",
+                       label="IVD Modulator S ({} nodes)".format(len(modulator_osm))),
+    ], fontsize=10, loc="lower right", frameon=True, framealpha=0.92, edgecolor="#aaaaaa")
+    ax.set_title(
+        "OSM Road Network — {}\nIVD Modulator S  |S|={}  |  Min TDS={}".format(
+            label, len(modulator_osm), tds_size),
+        fontsize=13, fontweight="bold")
+    ax.axis("off")
+    plt.tight_layout()
+    plt.savefig("itds_modulator.png", dpi=150, bbox_inches="tight")
+    print("  Image 1 saved -> itds_modulator.png  (IVD modulator)")
+    plt.close(fig)
+    return "itds_modulator.png"
+
+
+def visualize_interval_tds(G_nx, modulator_osm, tds_osm, label, tds_size):
+    pos = {n: (G_nx.nodes[n]["x"], G_nx.nodes[n]["y"]) for n in G_nx.nodes()}
+    node_colors, node_sizes = [], []
+    for n in G_nx.nodes():
+        in_tds = n in tds_osm
+        in_mod = n in modulator_osm
+        if in_tds and in_mod:
+            node_colors.append("#6c3483"); node_sizes.append(200)   # dark purple
+        elif in_tds:
+            node_colors.append("#27ae60"); node_sizes.append(80)    # green
+        elif in_mod:
+            node_colors.append("#a569bd"); node_sizes.append(150)   # light purple
+        else:
+            node_colors.append("#111111"); node_sizes.append(20)
+
+    fig, ax = plt.subplots(figsize=(12, 9))
+    nx.draw_networkx_edges(G_nx, pos, ax=ax, edge_color="#111111", width=0.8, alpha=0.6)
+    nx.draw_networkx_nodes(G_nx, pos, ax=ax, node_color=node_colors, node_size=node_sizes)
+    annotate_corner_leaves(ax, G_nx)
+    ax.legend(handles=[
+        mpatches.Patch(color="#27ae60", label="In TDS — interval vertex"),
+        mpatches.Patch(color="#6c3483", label="In TDS — modulator vertex"),
+        mpatches.Patch(color="#a569bd", label="Modulator — NOT in TDS"),
+        mpatches.Patch(color="#111111", label="Not in TDS"),
+    ], fontsize=10, loc="lower right", frameon=True, framealpha=0.92, edgecolor="#aaaaaa")
+    ax.set_title(
+        "Minimum Total Dominating Set (Interval) — {}\nMin TDS size = {}".format(
+            label, tds_size),
+        fontsize=13, fontweight="bold")
+    ax.axis("off")
+    plt.tight_layout()
+    plt.savefig("itds_result.png", dpi=150, bbox_inches="tight")
+    print("  Image 2 saved -> itds_result.png  (Interval TDS placement)")
+    plt.close(fig)
+    return "itds_result.png"
+
+
+def save_satellite_interval_tds(lat, lon, radius, label, G_nx, modulator_osm, tds_osm):
+    if not _HAS_CONTEXTILY:
+        print("  Skipping satellite image (contextily not installed).")
+        return None
+    fwd = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+    pos_merc = {n: fwd.transform(G_nx.nodes[n]["x"], G_nx.nodes[n]["y"]) for n in G_nx.nodes()}
+    xs = [p[0] for p in pos_merc.values()]
+    ys = [p[1] for p in pos_merc.values()]
+    pad = radius * 0.25
+    west, east   = min(xs) - pad, max(xs) + pad
+    south, north = min(ys) - pad, max(ys) + pad
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.set_xlim(west, east); ax.set_ylim(south, north)
+    try:
+        ctx.add_basemap(ax, crs="EPSG:3857",
+                        source=ctx.providers.Esri.WorldImagery,
+                        zoom="auto", attribution=False)
+    except Exception as e:
+        print("  Could not fetch satellite tiles:", e)
+        plt.close(fig); return None
+
+    for u, v in G_nx.edges():
+        x0, y0 = pos_merc[u]; x1, y1 = pos_merc[v]
+        ax.plot([x0, x1], [y0, y1], color="white", linewidth=1.2, alpha=0.75, zorder=2)
+    for n in G_nx.nodes():
+        x, y = pos_merc[n]
+        in_tds = n in tds_osm; in_mod = n in modulator_osm
+        if in_tds and in_mod:   color, size, zorder = "#6c3483", 60, 5
+        elif in_tds:            color, size, zorder = "#27ae60", 35, 4
+        elif in_mod:            color, size, zorder = "#a569bd", 50, 5
+        else:                   color, size, zorder = "#ffffff", 15, 3
+        ax.scatter(x, y, s=size, c=color, zorder=zorder, edgecolors="black", linewidths=0.4)
+
+    cx, cy = fwd.transform(lon, lat)
+    ax.add_patch(plt.Circle((cx, cy), radius, color="violet",
+                             fill=False, linewidth=1.5, linestyle="--", alpha=0.8, zorder=6))
+    ax.plot(cx, cy, "m+", markersize=10, markeredgewidth=1.5, zorder=7)
+    ax.legend(handles=[
+        mpatches.Patch(color="#27ae60", label="In TDS — interval"),
+        mpatches.Patch(color="#6c3483", label="In TDS — modulator"),
+        mpatches.Patch(color="#a569bd", label="Modulator — NOT in TDS"),
+        mpatches.Patch(color="#ffffff", label="Not in TDS", edgecolor="black", linewidth=0.5),
+    ], fontsize=9, loc="lower right", frameon=True, framealpha=0.85, edgecolor="#aaaaaa")
+    ax.set_axis_off()
+    ax.set_title(
+        "Satellite View (Interval TDS) — {}\n({}, {})  r={}m".format(label, lat, lon, radius),
+        fontsize=13, fontweight="bold", pad=10)
+    plt.tight_layout()
+    plt.savefig("itds_satellite.png", dpi=150, bbox_inches="tight")
+    print("  Image 3 saved -> itds_satellite.png")
+    plt.close(fig)
+    return "itds_satellite.png"
+
+
+# ===========================================================================
+# SECTION E: BRANCH RUNNERS
 # ===========================================================================
 
 def run_cluster_branch(G_nx, label, args, results, st_status=None):
@@ -525,8 +656,75 @@ def run_block_branch(G_nx, label, args, results, st_status=None):
     return results
 
 
+def run_interval_branch(G_nx, label, args, results, st_status=None):
+    """Almost Interval Graph: IVD modulator -> Min Total Dominating Set (Python FPT)."""
+    print("\n  [Interval Branch] Compressing graph ...")
+    if st_status: st_status.update(label="Compressing graph...", state="running")
+    G_small = compress(G_nx)
+
+    print("  [Interval Branch] Finding IVD modulator ...")
+    if st_status: st_status.update(label="Finding IVD Modulator...", state="running")
+
+    # Convert compressed graph to adjacency dict for interval solver
+    adj_small = nx_to_adj(G_small) if G_small.number_of_nodes() > 0 else {}
+    modulator_osm = extract_ivd_modulator(adj_small) if adj_small else set()
+
+    results['modulator_size'] = len(modulator_osm)
+    print("  IVD Modulator S ({} nodes)".format(len(modulator_osm)))
+
+    print("\n  [Interval Branch] Running FPT TDS solver ...")
+    if st_status: st_status.update(label="Running Interval TDS solver...", state="running")
+
+    # Solve on the full graph using the modulator found on compressed graph
+    adj_full = nx_to_adj(G_nx)
+    tds_result = solve_tds_almost_interval(adj_full, modulator_osm)
+
+    if tds_result is None:
+        raise ValueError("No valid TDS found for almost-interval graph.")
+
+    tds_osm = set(tds_result)
+    results['ds_size'] = len(tds_osm)
+    results['ds_type'] = 'TDS (Interval)'
+
+    # Verify result
+    tds_set   = set(tds_result)
+    dominated = all(any(nb in tds_set for nb in adj_full.get(v, set())) for v in adj_full)
+    total     = all(any(nb in tds_set for nb in adj_full.get(u, set())) for u in tds_set)
+
+    print("\n" + "=" * 50)
+    print("  RESULT: Minimum TDS size: {}".format(len(tds_osm)))
+    print("  Dominated: {}  |  Total: {}".format(
+        "✓" if dominated else "✗",
+        "✓" if total     else "✗"
+    ))
+    print("=" * 50)
+
+    if st_status: st_status.update(label="Generating visualizations...", state="running")
+    results['img_modulator'] = visualize_ivd_modulator(
+        G_nx, modulator_osm, label, len(tds_osm))
+    results['img_ds'] = visualize_interval_tds(
+        G_nx, modulator_osm, tds_osm, label, len(tds_osm))
+
+    img3 = None
+    if args.point:
+        img3 = save_satellite_interval_tds(
+            args.point[0], args.point[1], args.radius,
+            label, G_nx, modulator_osm, tds_osm)
+    elif args.bbox:
+        mid_lat = (args.bbox[0] + args.bbox[1]) / 2
+        mid_lon = (args.bbox[2] + args.bbox[3]) / 2
+        approx_r = int(((args.bbox[0] - args.bbox[1])**2 +
+                         (args.bbox[2] - args.bbox[3])**2)**0.5 * 55000)
+        img3 = save_satellite_interval_tds(
+            mid_lat, mid_lon, approx_r,
+            label, G_nx, modulator_osm, tds_osm)
+    if img3:
+        results['img_satellite'] = img3
+    return results
+
+
 # ===========================================================================
-# SECTION E: BLOCK BRANCH — INTERNAL HELPERS  (prefixed with _ )
+# SECTION F: BLOCK BRANCH — INTERNAL HELPERS
 # ===========================================================================
 
 def _find_bgd_modulator(G_bgd, max_k):
@@ -603,7 +801,7 @@ def _reconstruct_tds(G_nx, osm2idx, tds_vertices_idx):
 
 
 # ===========================================================================
-# SECTION F: UNIFIED PIPELINE ENTRY POINT  (called by app.py / Streamlit)
+# SECTION G: UNIFIED PIPELINE ENTRY POINT  (called by app.py / Streamlit)
 # ===========================================================================
 
 class PipelineArgs:
@@ -617,17 +815,21 @@ class PipelineArgs:
         self.k          = k
         self.maxnodes   = maxnodes
         self.network    = network
-        # "cluster"  ->  CVD + Min SDS  (uses msds_solver.py)
-        # "block"    ->  BGD + Min TDS  (uses C++ solver)
+        # "cluster"   ->  CVD  + Min SDS  (msds_solver.py)
+        # "block"     ->  BGD  + Min TDS  (C++ solver)
+        # "interval"  ->  IVD  + Min TDS  (interval_tds_solver.py)
         self.graph_type = graph_type
 
 
 def run_pipeline_for_ui(args, st_status=None):
     results = {}
-    mode_label = ("Almost Cluster Graph  (CVD + Min SDS)"
-                  if args.graph_type == "cluster"
-                  else "Almost Block Graph   (BGD + Min TDS)")
-    print("\n=== OSM Pipeline: {} ===\n".format(mode_label))
+    mode_labels = {
+        "cluster":  "Almost Cluster Graph   (CVD + Min SDS)",
+        "block":    "Almost Block Graph     (BGD + Min TDS)",
+        "interval": "Almost Interval Graph  (IVD + Min TDS)",
+    }
+    print("\n=== OSM Pipeline: {} ===\n".format(
+        mode_labels.get(args.graph_type, args.graph_type)))
 
     G_nx, label = fetch_osm(args, st_status)
     results['nodes']      = G_nx.number_of_nodes()
@@ -636,15 +838,19 @@ def run_pipeline_for_ui(args, st_status=None):
 
     if args.graph_type == "cluster":
         results = run_cluster_branch(G_nx, label, args, results, st_status)
-    else:
+    elif args.graph_type == "block":
         results = run_block_branch(G_nx, label, args, results, st_status)
+    elif args.graph_type == "interval":
+        results = run_interval_branch(G_nx, label, args, results, st_status)
+    else:
+        raise ValueError("Unknown graph_type: {}".format(args.graph_type))
 
     if st_status: st_status.update(label="Complete!", state="complete")
     return results
 
 
 # ===========================================================================
-# SECTION G: CLI ENTRY POINT
+# SECTION H: CLI ENTRY POINT
 # ===========================================================================
 
 def main():
@@ -653,11 +859,12 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(
-        "--graph-type", choices=["cluster", "block"], default="cluster",
+        "--graph-type", choices=["cluster", "block", "interval"], default="cluster",
         help=(
             "Graph structure assumption:\n"
-            "  cluster  ->  Almost Cluster Graph: CVD modulator + Min Secure DS  (msds_solver.py)\n"
-            "  block    ->  Almost Block Graph:   BGD modulator + Min Total DS   (C++ solver)"
+            "  cluster   ->  Almost Cluster Graph:  CVD modulator + Min Secure DS   (msds_solver.py)\n"
+            "  block     ->  Almost Block Graph:    BGD modulator + Min Total DS    (C++ solver)\n"
+            "  interval  ->  Almost Interval Graph: IVD modulator + Min Total DS    (interval_tds_solver.py)"
         )
     )
     area = parser.add_mutually_exclusive_group(required=True)
@@ -671,7 +878,7 @@ def main():
     parser.add_argument("--radius",   type=int, default=300,
                         help="Radius in metres around --point (default 300)")
     parser.add_argument("--k",        type=int, default=10,
-                        help="Max BGD modulator size to try (default 10, ignored for CVD)")
+                        help="Max BGD modulator size to try (default 10, block branch only)")
     parser.add_argument("--maxnodes", type=int, default=500,
                         help="Abort if graph exceeds this many nodes (default 500)")
     parser.add_argument("--network",  type=str, default="drive",
