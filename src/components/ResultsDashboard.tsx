@@ -33,7 +33,7 @@ const ResultsDashboard = ({ data }: ResultsDashboardProps) => {
                 value="modulator"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary bg-transparent px-5 pb-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                Focus Mode: Modulator
+                Modulator
               </TabsTrigger>
               <TabsTrigger
                 value="ds"
@@ -45,7 +45,7 @@ const ResultsDashboard = ({ data }: ResultsDashboardProps) => {
                 value="satellite"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary bg-transparent px-5 pb-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                Spatio-Semantic Satellite
+                Satellite Image
               </TabsTrigger>
             </TabsList>
           </div>

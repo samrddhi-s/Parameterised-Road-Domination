@@ -43,7 +43,7 @@ const Index = () => {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-lg">🗺️</span>
               <h2 className="text-sm font-bold uppercase tracking-widest text-primary">
-                TDS Pipeline
+                Pipeline
               </h2>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -67,10 +67,10 @@ const Index = () => {
             <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/60 to-background" />
             <div className="relative z-10 h-full flex flex-col justify-end px-8 pb-8">
               <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gradient-hero mb-2">
-                Minimum Total Dominating Set
+                Domination Set Variants
               </h1>
               <p className="text-muted-foreground text-base max-w-xl">
-                Optimize spatial road networks intelligently using block graph deletion modulators.
+                Finding minimum dominating set varaints 
               </p>
             </div>
           </div>

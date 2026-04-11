@@ -67,13 +67,6 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
             </SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground mt-2">
-          {graphType === "cluster"
-            ? "CVD modulator → Minimum Secure Dominating Set (Python FPT)"
-            : graphType === "block"
-            ? "BGD modulator → Minimum Total Dominating Set (C++ solver)"
-            : "IVD modulator → Minimum Total Dominating Set (Python FPT)"}
-        </p>
       </div>
 
       {/* Location Mode */}
@@ -88,12 +81,6 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
           <TabsList className="w-full bg-secondary/50">
             <TabsTrigger value="point" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <MapPin className="w-3 h-3 mr-1" /> Point
-            </TabsTrigger>
-            <TabsTrigger value="place" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Globe className="w-3 h-3 mr-1" /> Place
-            </TabsTrigger>
-            <TabsTrigger value="bbox" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Square className="w-3 h-3 mr-1" /> BBox
             </TabsTrigger>
           </TabsList>
 
@@ -110,23 +97,7 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
             </div>
           </TabsContent>
 
-          <TabsContent value="place" className="mt-4">
-            <Label className="text-xs text-muted-foreground">Region</Label>
-            <Input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="E.g., Adyar, Chennai" className="bg-secondary/50 border-border/50 text-foreground" />
-          </TabsContent>
-
-          <TabsContent value="bbox" className="mt-4 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              {(["n", "s", "e", "w"] as const).map((k) => (
-                <div key={k}>
-                  <Label className="text-xs text-muted-foreground capitalize">
-                    {k === "n" ? "North" : k === "s" ? "South" : k === "e" ? "East" : "West"}
-                  </Label>
-                  <Input type="number" step="0.000001" value={bbox[k]} onChange={(e) => setBbox({ ...bbox, [k]: parseFloat(e.target.value) })} className="bg-secondary/50 border-border/50 text-foreground" />
-                </div>
-              ))}
-            </div>
-          </TabsContent>
+          
         </Tabs>
       </div>
 
@@ -139,30 +110,9 @@ const InputPanel = ({ onRun, isRunning }: InputPanelProps) => {
           </h3>
         </div>
         <div className="space-y-4">
-          <div>
-            <Label className="text-xs text-muted-foreground">Network Topology</Label>
-            <Select value={networkType} onValueChange={setNetworkType}>
-              <SelectTrigger className="bg-secondary/50 border-border/50 text-foreground">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="drive">Drive</SelectItem>
-                <SelectItem value="walk">Walk</SelectItem>
-                <SelectItem value="bike">Bike</SelectItem>
-                <SelectItem value="all">All</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          
 
-          {graphType === "block" && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-xs text-muted-foreground">Modulator Vector (k)</Label>
-                <span className="text-xs font-mono text-primary">{kModulator}</span>
-              </div>
-              <Slider value={[kModulator]} onValueChange={([v]) => setKModulator(v)} min={1} max={20} step={1} className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary" />
-            </div>
-          )}
+          
 
           <div className="grid grid-cols-2 gap-3">
             <div>
