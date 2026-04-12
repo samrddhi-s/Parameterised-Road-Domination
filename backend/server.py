@@ -1,9 +1,4 @@
 """
-FastAPI server wrapping the unified TDS/SDS Pipeline.
-
-Supports two graph types:
-  - "block"   → Almost Block Graph  → BGD + Min Total Dominating Set (C++ solver)
-  - "cluster" → Almost Cluster Graph → CVD + Min Secure Dominating Set (Python FPT)
 
 Install: pip install fastapi uvicorn
 Run:     uvicorn server:app --host 0.0.0.0 --port 8000
@@ -52,7 +47,7 @@ class PipelineResponse(BaseModel):
     modulator_size: int
     ds_size: int
     ds_type: str                            # "TDS" or "SDS"
-    graph_type: str                         # "block" or "cluster"
+    graph_type: str                         # "block" or "cluster" or "interval"
     img_modulator: Optional[str] = None     # base64 PNG
     img_ds: Optional[str] = None            # base64 PNG
     img_satellite: Optional[str] = None     # base64 PNG
